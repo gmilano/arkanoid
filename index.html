@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>ARKANOID</title>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,8 +40,28 @@ canvas { display: block; flex-shrink: 0; }
 'use strict';
 
 /* ════════════════════════════════════════════════════════════
-   ARKANOID  –  v3
+   ARKANOID  –  v4  (Safari / iOS compatible)
    ════════════════════════════════════════════════════════════ */
+
+// Safari / older iOS polyfill for roundRect
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    const rad = Math.min(
+      typeof r === 'number' ? r : (Array.isArray(r) ? r[0] : 0),
+      w / 2, h / 2
+    );
+    this.moveTo(x + rad, y);
+    this.lineTo(x + w - rad, y);
+    this.quadraticCurveTo(x + w, y,     x + w, y + rad);
+    this.lineTo(x + w, y + h - rad);
+    this.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    this.lineTo(x + rad, y + h);
+    this.quadraticCurveTo(x,     y + h, x,     y + h - rad);
+    this.lineTo(x, y + rad);
+    this.quadraticCurveTo(x,     y,     x + rad, y);
+    this.closePath();
+  };
+}
 
 // ── Canvas setup ─────────────────────────────────────────────
 const canvas = document.getElementById('c');
@@ -279,8 +301,12 @@ function trackPointer(clientX) {
 }
 canvas.addEventListener('mousemove', e => trackPointer(e.clientX));
 canvas.addEventListener('click',     () => onAction());
-canvas.addEventListener('touchmove', e => { e.preventDefault(); trackPointer(e.touches[0].clientX); }, { passive: false });
+canvas.addEventListener('touchmove',  e => { e.preventDefault(); trackPointer(e.touches[0].clientX); }, { passive: false });
 canvas.addEventListener('touchstart', e => { e.preventDefault(); trackPointer(e.touches[0].clientX); onAction(); }, { passive: false });
+// iOS: also allow tap anywhere on screen for start/gameover states
+document.addEventListener('touchstart', e => {
+  if ([ST.START, ST.OVER, ST.WIN, ST.CLEAR].includes(gs)) onAction();
+}, { passive: true });
 
 function onAction() {
   if ([ST.START, ST.OVER, ST.WIN].includes(gs)) {
